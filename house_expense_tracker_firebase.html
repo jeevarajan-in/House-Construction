@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>House Build Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EDEFEA; --card:#F8F9F6; --ink:#1F2528; --muted:#66706F; --line:#CDD2CB;
+  --steel:#2B3438; --steel-ink:#EDEFEA; --brick:#A8472F; --safety:#E3A81B; --ok:#3F7A55; --over:#B3321F;
+  --brick-bg:#E9D3CB;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#171B1D; --card:#1F2528; --ink:#E7EAE5; --muted:#8F9A98; --line:#323B3E;
+    --steel:#0F1213; --steel-ink:#E7EAE5; --brick:#D2745B; --safety:#E9B73A; --ok:#6FB78A; --over:#E0715E;
+    --brick-bg:#3A2A25;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:'Barlow','Segoe UI',system-ui,sans-serif;font-size:16px;line-height:1.45}
+h1,h2,h3,.num{font-family:'Barlow Condensed','Arial Narrow',sans-serif;letter-spacing:.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--safety);outline-offset:2px}
+
+.site{background:var(--steel);color:var(--steel-ink);padding:22px 20px 26px;border-bottom:6px solid var(--safety)}
+.wrap{max-width:1040px;margin:0 auto}
+.site .top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.title-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.site h1{margin:0;font-size:1.05rem;font-weight:600;opacity:.8}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;padding:2px 10px;border:1px solid rgba(237,239,234,.35);border-radius:99px}
+.chip::before{content:"";width:8px;height:8px;border-radius:50%;background:#8F9A98}
+.chip.live::before{background:#6FD39A}
+.chip.sync::before{background:var(--safety)}
+.chip.off::before{background:#FF9A87}
+.big{font-size:clamp(2.6rem,9vw,4.4rem);font-weight:700;line-height:1;margin:6px 0 2px}
+.big small{font-size:.35em;font-weight:500;opacity:.7;margin-left:8px}
+.site .sub{opacity:.75;font-size:.95rem}
+.btn{border:0;border-radius:6px;padding:10px 16px;font-weight:600;cursor:pointer;background:var(--safety);color:#1F2528;min-height:44px}
+.btn:hover{filter:brightness(1.07)}
+.btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--ink)}
+.btn.small{padding:6px 12px;min-height:34px;font-size:.9rem}
+.btn.danger{background:transparent;border:1.5px solid var(--over);color:var(--over)}
+.site .btn.ghost{border-color:rgba(237,239,234,.4);color:var(--steel-ink)}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:22px;border-top:1px solid rgba(237,239,234,.2)}
+.stat{padding:14px 14px 0 0}
+.stat+.stat{padding-left:14px;border-left:1px solid rgba(237,239,234,.2)}
+.stat .l{font-size:.85rem;opacity:.7}
+.stat .v{font-size:1.7rem;font-weight:600;line-height:1.15}
+.stat .v.over{color:#FF9A87}
+.budget-edit{background:transparent;border:0;border-bottom:1.5px dashed rgba(237,239,234,.5);color:inherit;width:9ch;font:inherit;font-weight:600;font-size:1.7rem;padding:0;font-family:'Barlow Condensed',sans-serif}
+
+.notice{background:var(--brick-bg);border-left:5px solid var(--brick);padding:10px 14px;margin:16px auto 0;max-width:1000px;font-size:.92rem}
+
+main{max-width:1040px;margin:0 auto;padding:20px}
+.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-bottom:18px;overflow-x:auto}
+.tab{background:none;border:0;padding:10px 18px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:4px solid transparent;margin-bottom:-2px;white-space:nowrap;font-size:1.02rem}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--safety)}
+
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.toolbar input,.toolbar select{background:var(--card);border:1.5px solid var(--line);border-radius:6px;padding:8px 10px;min-height:40px}
+.toolbar .grow{flex:1;min-width:160px}
+
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line)}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.88rem;color:var(--muted);font-weight:600;background:var(--paper)}
+td.amt,th.amt{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.amt{font-weight:600}
+.tag{display:inline-block;font-size:.8rem;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.note{color:var(--muted);font-size:.88rem}
+.row-actions{white-space:nowrap;text-align:right}
+.row-actions button{background:none;border:0;color:var(--muted);cursor:pointer;padding:6px 8px;text-decoration:underline;font-size:.9rem}
+.row-actions button:hover{color:var(--ink)}
+tfoot td{font-weight:700;background:var(--paper)}
+
+.empty{background:var(--card);border:2px dashed var(--line);padding:40px 20px;text-align:center}
+.empty h3{margin:0 0 6px;font-size:1.5rem}
+.empty p{margin:0 0 16px;color:var(--muted)}
+
+.phase{background:var(--card);border:1px solid var(--line);padding:14px 16px;margin-bottom:10px}
+.phase-head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+.phase h3{margin:0;font-size:1.3rem;font-weight:600}
+.phase .nums{font-size:.95rem;color:var(--muted)}
+.phase .nums b{color:var(--ink);font-weight:600}
+.bricks{height:18px;margin:10px 0 8px;background:
+  repeating-linear-gradient(90deg,transparent 0 22px,var(--card) 22px 24px),
+  var(--line);position:relative;overflow:hidden}
+.bricks i{position:absolute;inset:0 auto 0 0;background:
+  repeating-linear-gradient(90deg,transparent 0 22px,var(--card) 22px 24px),
+  var(--ok)}
+.bricks.warn i{background:repeating-linear-gradient(90deg,transparent 0 22px,var(--card) 22px 24px),var(--safety)}
+.bricks.over i{background:repeating-linear-gradient(90deg,transparent 0 22px,var(--card) 22px 24px),var(--over)}
+.phase-foot{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:.92rem}
+.phase-foot label{color:var(--muted)}
+.phase-foot input{width:11ch;background:var(--paper);border:1.5px solid var(--line);border-radius:5px;padding:5px 8px;text-align:right}
+.status-over{color:var(--over);font-weight:600}
+.status-ok{color:var(--ok);font-weight:600}
+
+.months{display:grid;gap:8px}
+.m{display:grid;grid-template-columns:90px 1fr 120px;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);padding:10px 14px}
+.m .bar{height:22px;background:var(--paper)}
+.m .bar i{display:block;height:100%;background:var(--steel)}
+@media (prefers-color-scheme: dark){.m .bar i{background:var(--safety)}}
+.m .val{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+.box{background:var(--card);border:1px solid var(--line);padding:14px 16px}
+.box h3{margin:0 0 10px;font-size:1.25rem}
+.li{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);gap:10px}
+.li:last-child{border-bottom:0}
+
+dialog{border:0;padding:0;background:var(--card);color:var(--ink);width:min(520px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+dialog::backdrop{background:rgba(10,14,15,.6)}
+.dlg-head{background:var(--steel);color:var(--steel-ink);padding:14px 20px;border-bottom:4px solid var(--safety)}
+.dlg-head h2{margin:0;font-size:1.5rem;font-weight:600}
+.dlg-body{padding:18px 20px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.dlg-body .full{grid-column:1/-1}
+.f label{display:block;font-size:.88rem;color:var(--muted);margin-bottom:3px}
+.f input,.f select,.f textarea{width:100%;background:var(--paper);border:1.5px solid var(--line);border-radius:6px;padding:9px 10px;min-height:42px}
+.f textarea{min-height:60px;resize:vertical}
+.err{color:var(--over);font-size:.88rem;min-height:1.2em;grid-column:1/-1;margin:0}
+.dlg-foot{padding:0 20px 18px;display:flex;gap:10px;justify-content:flex-end}
+
+.tools{display:flex;gap:10px;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--steel);color:var(--steel-ink);padding:10px 18px;border-left:5px solid var(--safety);opacity:0;pointer-events:none;transition:opacity .2s;z-index:200;max-width:92vw}
+.toast.show{opacity:1}
+.toast.bad{border-left-color:var(--over)}
+
+/* PIN lock */
+#lock{position:fixed;inset:0;z-index:100;background:var(--steel);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+#lock[hidden]{display:none}
+.lock-card{background:var(--card);width:100%;max-width:340px;padding:28px 24px;text-align:center;border-top:6px solid var(--safety)}
+.lock-card h2{margin:0;font-size:1.7rem;font-weight:600}
+.lock-card p{margin:4px 0 20px;color:var(--muted);font-size:.93rem}
+.dots{display:flex;justify-content:center;gap:12px;margin-bottom:18px}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--muted)}
+.dot.on{background:var(--safety);border-color:var(--safety)}
+.dot.bad{background:var(--over);border-color:var(--over)}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.key{height:58px;border:1.5px solid var(--line);background:var(--paper);border-radius:8px;font-size:1.4rem;font-weight:600;cursor:pointer;font-family:'Barlow Condensed',sans-serif}
+.key:active{background:var(--safety);color:#1F2528}
+.key.blank{visibility:hidden}
+.lock-err{color:var(--over);min-height:1.3em;font-size:.9rem;margin-top:12px}
+.lock-cancel{margin-top:6px;background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer}
+
+@media (max-width:720px){
+  .stats{grid-template-columns:1fr 1fr}
+  .stat:nth-child(3){padding-left:0;border-left:0}
+  .stat:nth-child(n+3){margin-top:8px}
+  .split{grid-template-columns:1fr}
+  .m{grid-template-columns:70px 1fr 90px}
+  .dlg-body{grid-template-columns:1fr}
+  table.responsive thead{display:none}
+  table.responsive tr{display:grid;grid-template-columns:1fr auto;padding:10px 12px;border-bottom:1px solid var(--line)}
+  table.responsive td{border:0;padding:2px 0}
+  table.responsive td.amt{text-align:right;grid-row:1;grid-column:2}
+  table.responsive td.row-actions{grid-column:1/-1;text-align:left}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- PIN lock -->
+<div id="lock">
+  <div class="lock-card">
+    <h2 id="lockTitle">Connecting…</h2>
+    <p id="lockSub">Loading your ledger</p>
+    <div class="dots" id="dots"></div>
+    <div class="keys" id="keys"></div>
+    <div class="lock-err" id="lockErr" role="alert"></div>
+    <button class="lock-cancel" id="lockCancel" hidden>Cancel</button>
+  </div>
+</div>
+
+<header class="site">
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div class="title-row"><h1>House build ledger</h1><span class="chip" id="sync">Connecting</span></div>
+        <div class="big num"><span id="hSpent">₹0</span><small>spent so far</small></div>
+        <div class="sub" id="hSub"></div>
+      </div>
+      <div class="tools">
+        <button class="btn" id="addBtn">Add expense</button>
+        <button class="btn ghost" id="lockBtn">Lock</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="l">Total budget</div><div class="v num"><input class="budget-edit" id="budgetInput" inputmode="numeric" aria-label="Total budget in rupees"></div></div>
+      <div class="stat"><div class="l">Spent</div><div class="v num" id="sSpent">₹0</div></div>
+      <div class="stat"><div class="l">Remaining</div><div class="v num" id="sRemain">₹0</div></div>
+      <div class="stat"><div class="l">Budget used</div><div class="v num" id="sPct">0%</div></div>
+    </div>
+  </div>
+</header>
+
+<div class="notice" id="notice" hidden></div>
+
+<main>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="expenses">Expenses</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="phases">Phases</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="monthly">Monthly</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="data">Data</button>
+  </div>
+
+  <section id="tab-expenses">
+    <div class="toolbar">
+      <input class="grow" id="q" type="search" placeholder="Search paid to, notes, amount" aria-label="Search expenses">
+      <select id="fPhase" aria-label="Filter by phase"></select>
+      <select id="fCat" aria-label="Filter by category"></select>
+      <select id="fMonth" aria-label="Filter by month"></select>
+    </div>
+    <div id="expList"></div>
+  </section>
+
+  <section id="tab-phases" hidden>
+    <div id="phaseList"></div>
+    <div class="toolbar" style="margin-top:14px">
+      <input class="grow" id="newPhase" placeholder="New phase name, e.g. Compound wall" aria-label="New phase name">
+      <button class="btn small" id="addPhase">Add phase</button>
+    </div>
+  </section>
+
+  <section id="tab-monthly" hidden>
+    <div class="months" id="monthList"></div>
+    <div class="split">
+      <div class="box"><h3>By category</h3><div id="catList"></div></div>
+      <div class="box"><h3>By payment mode</h3><div id="modeList"></div></div>
+    </div>
+  </section>
+
+  <section id="tab-data" hidden>
+    <div class="box" style="margin-bottom:16px">
+      <h3>Export and back up</h3>
+      <p class="note" style="margin-top:0">Download a CSV for Excel, or a backup file you can restore later.</p>
+      <div class="tools">
+        <button class="btn small" id="expCsv">Download CSV</button>
+        <button class="btn small ghost" id="expJson">Back up data</button>
+      </div>
+    </div>
+    <div class="box" style="margin-bottom:16px">
+      <h3>Import from backup</h3>
+      <p class="note" style="margin-top:0">Pick a backup file (including one from the earlier offline version) and it uploads to Firebase. Importing the same file twice won't create duplicates.</p>
+      <button class="btn small ghost" id="impJsonBtn">Choose backup file</button>
+      <input type="file" id="impJson" accept="application/json,.json" hidden>
+    </div>
+    <div class="box" style="margin-bottom:16px">
+      <h3>PIN</h3>
+      <p class="note" style="margin-top:0">Anyone using this ledger on any device uses the same 6-digit PIN.</p>
+      <button class="btn small ghost" id="changePin">Change PIN</button>
+    </div>
+    <div class="box">
+      <h3>Start over</h3>
+      <p class="note" style="margin-top:0">Deletes every expense for everyone and resets phases and budget. Back up first.</p>
+      <button class="btn small danger" id="resetAll">Delete all data</button>
+    </div>
+  </section>
+</main>
+
+<dialog id="dlg">
+  <div class="dlg-head"><h2 id="dlgTitle">Add expense</h2></div>
+  <div class="dlg-body">
+    <div class="f"><label for="eDate">Date</label><input type="date" id="eDate"></div>
+    <div class="f"><label for="eAmt">Amount (₹)</label><input id="eAmt" inputmode="decimal" placeholder="0"></div>
+    <div class="f"><label for="ePhase">Phase</label><select id="ePhase"></select></div>
+    <div class="f"><label for="eCat">Category</label><select id="eCat"></select></div>
+    <div class="f full"><label for="ePayee">Paid to</label><input id="ePayee" placeholder="Mason, supplier, shop name"></div>
+    <div class="f"><label for="eMode">Payment mode</label><select id="eMode"></select></div>
+    <div class="f"><label for="eRef">Bill or reference no.</label><input id="eRef" placeholder="Optional"></div>
+    <div class="f full"><label for="eBy">Added by</label><input id="eBy" placeholder="Your name"></div>
+    <div class="f full"><label for="eNote">Note</label><textarea id="eNote" placeholder="Optional: what was this for?"></textarea></div>
+    <p class="err" id="eErr" role="alert"></p>
+  </div>
+  <div class="dlg-foot">
+    <button class="btn ghost" id="eCancel" type="button">Cancel</button>
+    <button class="btn" id="eSave" type="button">Save expense</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
+  collection, addDoc, updateDoc, deleteDoc, setDoc, getDocs, doc, onSnapshot,
+  serverTimestamp, writeBatch
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ── Firebase: paste YOUR new project's config here ──
+   Firebase console → Project settings → Your apps → Web app → "Config" */
+const firebaseConfig = {
+  apiKey: "AIzaSyAW0Isf659AdjWcXDkwoLBhgMaIP7m2KZE",
+  authDomain: "construction-353ca.firebaseapp.com",
+  projectId: "construction-353ca",
+  storageBucket: "construction-353ca.firebasestorage.app",
+  messagingSenderId: "154210264648",
+  appId: "1:154210264648:web:65d0923d50a37cb0bb9a7d"
+};
+if(String(firebaseConfig.apiKey).startsWith('PASTE')){
+  document.getElementById('lockTitle').textContent='Firebase not set up';
+  document.getElementById('lockSub').textContent='Open this file in a text editor and paste your Firebase project config into firebaseConfig.';
+  throw new Error('firebaseConfig has not been filled in');
+}
+const app = initializeApp(firebaseConfig);
+let db;
+try{
+  // Offline cache so entries still work on the site with poor signal
+  db = initializeFirestore(app,{localCache:persistentLocalCache({tabManager:persistentMultipleTabManager()})});
+}catch(e){ db = getFirestore(app); }
+
+const EXP_COL = 'houseExpenses';                    // one document per expense
+const cfgRef  = doc(db,'houseSettings','config');   // budget, phases, PIN hash
+
+const CATS=['Material','Labour','Contractor','Approvals & fees','Transport','Equipment rental','Fittings','Other'];
+const MODES=['Cash','UPI','Bank transfer','Cheque','Card'];
+const DEFAULT_PHASES=['Land & approvals','Foundation','Plinth','Structure (columns, slabs)','Brickwork','Plastering','Electrical','Plumbing','Flooring & tiles','Doors & windows','Carpentry','Painting','Finishing & misc'];
+
+const $=id=>document.getElementById(id);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const pad=n=>String(n).padStart(2,'0');
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;};
+const inr=n=>'₹'+Math.round(n||0).toLocaleString('en-IN');
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const monthKey=d=>d.slice(0,7);
+const monthLabel=k=>{const [y,m]=k.split('-');return new Date(+y,+m-1,1).toLocaleDateString('en-IN',{month:'short',year:'numeric'});};
+const dateLabel=d=>new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+const toNum=v=>{const n=parseFloat(String(v).replace(/[,₹\s]/g,''));return isNaN(n)?0:n;};
+const total=list=>list.reduce((s,e)=>s+e.amount,0);
+const defaultPhases=()=>DEFAULT_PHASES.map(n=>({id:uid(),name:n,budget:0}));
+const store={get(k){try{return localStorage.getItem(k)||''}catch(e){return ''}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+
+/* ── live state (mirrors Firestore) ── */
+let state={budget:0,phases:[],expenses:[]};
+let pinHash='', cfgReady=false, expReady=false;
+let expMeta=null;
+const phaseName=id=>(state.phases.find(p=>p.id===id)||{name:'Unassigned'}).name;
+
+function toast(msg,bad){const t=$('toast');t.textContent=msg;t.classList.toggle('bad',!!bad);t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),bad?4200:2200);}
+function fail(err){console.error(err);toast('Could not save. Check your connection and Firestore rules.',true);}
+function showNotice(msg){const n=$('notice');n.textContent=msg;n.hidden=!msg;}
+
+/* ── sync chip ── */
+function updateSync(){
+  const c=$('sync');
+  let cls='',txt='';
+  if(!navigator.onLine){cls='off';txt='Offline · will sync later';}
+  else if(!expMeta){cls='';txt='Connecting';}
+  else if(expMeta.hasPendingWrites){cls='sync';txt='Saving…';}
+  else if(expMeta.fromCache){cls='sync';txt='Syncing…';}
+  else{cls='live';txt='Live';}
+  c.className='chip '+cls;c.textContent=txt;
+}
+window.addEventListener('online',updateSync);
+window.addEventListener('offline',updateSync);
+
+/* ── Firestore listeners ── */
+onSnapshot(cfgRef,{includeMetadataChanges:true},snap=>{
+  const d=snap.exists()?snap.data():null;
+  state.budget=(d&&d.budget)||0;
+  state.phases=(d&&Array.isArray(d.phases))?d.phases:[];
+  pinHash=(d&&d.pinHash)||'';
+  cfgReady=true;
+  showNotice('');
+  initLock();
+  renderAll();
+},err=>{
+  console.error(err);
+  showNotice('Could not read from Firestore. In the Firebase console, add rules that allow the houseSettings and houseExpenses collections.');
+  $('lockTitle').textContent='Cannot connect';
+  $('lockSub').textContent='Check your internet and Firestore rules.';
+});
+onSnapshot(collection(db,EXP_COL),{includeMetadataChanges:true},snap=>{
+  expMeta=snap.metadata;
+  state.expenses=snap.docs.map(d=>{
+    const x=d.data({serverTimestamps:'estimate'});
+    return {...x,id:d.id,amount:Number(x.amount)||0,date:x.date||today(),created:(x.createdAt&&x.createdAt.toMillis)?x.createdAt.toMillis():0};
+  });
+  expReady=true;
+  updateSync();
+  renderAll();
+},err=>{
+  console.error(err);
+  showNotice('Could not read expenses. Check your Firestore rules for the houseExpenses collection.');
+});
+updateSync();
+
+/* ── PIN lock ── */
+const dots=$('dots'),keys=$('keys');
+for(let i=0;i<6;i++){const d=document.createElement('div');d.className='dot';dots.appendChild(d);}
+['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(k=>{
+  const b=document.createElement('button');b.className='key'+(k===''?' blank':'');b.textContent=k;b.type='button';
+  if(k==='⌫')b.setAttribute('aria-label','Delete');
+  if(k!=='')b.onclick=()=>k==='⌫'?pinDel():pinKey(k);
+  keys.appendChild(b);
+});
+let unlocked=false;
+try{unlocked=sessionStorage.getItem('hl_unlocked')==='1';}catch(e){}
+let lockMode='', entry='', tmpPin='', lockInited=false, changing=false;
+
+const SCREENS={
+  enter:['Enter PIN','Your 6-digit PIN unlocks the ledger'],
+  create:['Create a PIN','Choose 6 digits. Everyone who uses this ledger will share it.'],
+  confirm:['Confirm PIN','Enter the same 6 digits again'],
+  oldpin:['Current PIN','Enter your current PIN'],
+  newpin:['New PIN','Choose 6 new digits'],
+  confirmnew:['Confirm new PIN','Enter the new PIN again']
+};
+function setMode(m){
+  lockMode=m;entry='';
+  $('lockTitle').textContent=SCREENS[m][0];
+  $('lockSub').textContent=SCREENS[m][1];
+  $('lockErr').textContent='';
+  $('lockCancel').hidden=!changing;
+  drawDots();
+}
+function drawDots(bad){[...dots.children].forEach((d,i)=>d.className='dot'+(i<entry.length?' on':'')+(bad?' bad':''));}
+function initLock(){
+  if(!cfgReady)return;
+  if(unlocked){$('lock').hidden=true;return;}
+  if(!lockInited||(lockMode==='create'&&pinHash)){
+    lockInited=true;
+    $('lock').hidden=false;
+    setMode(pinHash?'enter':'create');
+  }
+}
+function pinKey(k){if(!lockMode||entry.length>=6)return;entry+=k;drawDots();if(entry.length===6)setTimeout(pinDone,120);}
+function pinDel(){entry=entry.slice(0,-1);drawDots();$('lockErr').textContent='';}
+function pinWrong(msg,next){
+  drawDots(true);$('lockErr').textContent=msg;
+  setTimeout(()=>{next?next():setMode(lockMode);},900);
+}
+async function hashPin(p,simple){
+  const s='house-ledger|'+p;
+  if(!simple){
+    try{
+      if(window.crypto&&crypto.subtle){
+        const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+        return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+    }catch(e){}
+  }
+  let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}
+  return 'f'+(h>>>0).toString(16);
+}
+async function matches(p){
+  const stored=pinHash;
+  return stored && stored===await hashPin(p, stored.length<12);
+}
+function unlock(){
+  unlocked=true;try{sessionStorage.setItem('hl_unlocked','1');}catch(e){}
+  $('lock').hidden=true;changing=false;
+}
+async function pinDone(){
+  const p=entry;
+  if(lockMode==='enter'){
+    if(await matches(p))unlock(); else pinWrong('Wrong PIN. Try again.');
+  }
+  else if(lockMode==='create'){tmpPin=p;setMode('confirm');}
+  else if(lockMode==='confirm'){
+    if(p!==tmpPin){pinWrong("PINs don't match.",()=>setMode('create'));return;}
+    const h=await hashPin(p);
+    const data={pinHash:h};
+    if(!state.phases.length){data.phases=defaultPhases();data.budget=0;}
+    setDoc(cfgRef,data,{merge:true}).catch(fail);
+    pinHash=h;unlock();toast('PIN set');
+  }
+  else if(lockMode==='oldpin'){
+    if(await matches(p))setMode('newpin'); else pinWrong('Wrong PIN.',()=>setMode('oldpin'));
+  }
+  else if(lockMode==='newpin'){tmpPin=p;setMode('confirmnew');}
+  else if(lockMode==='confirmnew'){
+    if(p!==tmpPin){pinWrong("PINs don't match.",()=>setMode('newpin'));return;}
+    const h=await hashPin(p);
+    setDoc(cfgRef,{pinHash:h},{merge:true}).catch(fail);
+    pinHash=h;changing=false;$('lock').hidden=true;toast('PIN changed');
+  }
+}
+document.addEventListener('keydown',e=>{
+  if($('lock').hidden)return;
+  if(/^\d$/.test(e.key))pinKey(e.key);
+  else if(e.key==='Backspace')pinDel();
+});
+$('lockBtn').onclick=()=>{unlocked=false;try{sessionStorage.removeItem('hl_unlocked');}catch(e){}lockInited=false;changing=false;initLock();};
+$('changePin').onclick=()=>{changing=true;$('lock').hidden=false;setMode('oldpin');};
+$('lockCancel').onclick=()=>{changing=false;$('lock').hidden=true;};
+
+/* ── header ── */
+function renderHeader(){
+  const spent=total(state.expenses), b=state.budget, rem=b-spent;
+  $('hSpent').textContent=inr(spent);
+  $('sSpent').textContent=inr(spent);
+  const r=$('sRemain');r.textContent=b?inr(rem):'—';r.classList.toggle('over',b>0&&rem<0);
+  $('sPct').textContent=b?Math.round(spent/b*100)+'%':'—';
+  if(document.activeElement!==$('budgetInput'))$('budgetInput').value=b?b.toLocaleString('en-IN'):'';
+  $('budgetInput').placeholder='Set budget';
+  const n=state.expenses.length;
+  $('hSub').textContent=n?`${n} expense${n>1?'s':''} recorded`+(b&&rem<0?` · over budget by ${inr(-rem)}`:''):(expReady?'No expenses yet':'Loading…');
+}
+
+function fillFilters(){
+  const keep=[$('fPhase').value,$('fCat').value,$('fMonth').value];
+  $('fPhase').innerHTML='<option value="">All phases</option>'+state.phases.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  $('fCat').innerHTML='<option value="">All categories</option>'+CATS.map(c=>`<option>${esc(c)}</option>`).join('');
+  const months=[...new Set(state.expenses.map(e=>monthKey(e.date)))].sort().reverse();
+  $('fMonth').innerHTML='<option value="">All months</option>'+months.map(m=>`<option value="${m}">${monthLabel(m)}</option>`).join('');
+  [$('fPhase'),$('fCat'),$('fMonth')].forEach((el,i)=>{if([...el.options].some(o=>o.value===keep[i]))el.value=keep[i];});
+}
+
+/* ── expenses ── */
+function renderExpenses(){
+  const q=$('q').value.trim().toLowerCase(), fp=$('fPhase').value, fc=$('fCat').value, fm=$('fMonth').value;
+  const host=$('expList');
+  if(!expReady){host.innerHTML='<div class="empty"><h3>Loading expenses…</h3><p>Fetching from Firebase.</p></div>';return;}
+  let list=state.expenses.filter(e=>
+    (!fp||e.phase===fp)&&(!fc||e.category===fc)&&(!fm||monthKey(e.date)===fm)&&
+    (!q||[e.payee,e.note,e.ref,e.addedBy,String(e.amount),phaseName(e.phase),e.category].join(' ').toLowerCase().includes(q))
+  ).sort((a,b)=>b.date.localeCompare(a.date)||(b.created-a.created));
+  if(!state.expenses.length){
+    host.innerHTML=`<div class="empty"><h3>Nothing recorded yet</h3><p>Add the first bill or payment, even a small one, and the totals will start building up.</p><button class="btn" id="emptyAdd">Add expense</button></div>`;
+    $('emptyAdd').onclick=()=>openDlg();return;
+  }
+  if(!list.length){host.innerHTML='<div class="empty"><h3>No matches</h3><p>Try clearing the search or filters.</p></div>';return;}
+  host.innerHTML=`<table class="responsive"><thead><tr><th>Date</th><th>Paid to</th><th>Phase</th><th>Category</th><th class="amt">Amount</th><th></th></tr></thead><tbody>`+
+  list.map(e=>`<tr>
+    <td>${dateLabel(e.date)}</td>
+    <td><b>${esc(e.payee)||'<span class="note">No name</span>'}</b>${e.note?`<div class="note">${esc(e.note)}</div>`:''}<div class="note">${esc(e.mode)}${e.ref?' · Ref '+esc(e.ref):''}${e.addedBy?' · by '+esc(e.addedBy):''}</div></td>
+    <td>${esc(phaseName(e.phase))}</td>
+    <td><span class="tag">${esc(e.category)}</span></td>
+    <td class="amt">${inr(e.amount)}</td>
+    <td class="row-actions"><button data-edit="${esc(e.id)}">Edit</button><button data-del="${esc(e.id)}">Delete</button></td>
+  </tr>`).join('')+
+  `</tbody><tfoot><tr><td colspan="4">${list.length} shown</td><td class="amt">${inr(total(list))}</td><td></td></tr></tfoot></table>`;
+  host.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openDlg(b.dataset.edit));
+  host.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{
+    const e=state.expenses.find(x=>x.id===b.dataset.del);
+    if(e&&confirm(`Delete ${inr(e.amount)} paid to ${e.payee||'this entry'}?`)){
+      deleteDoc(doc(db,EXP_COL,e.id)).then(()=>toast('Expense deleted')).catch(fail);
+    }
+  });
+}
+
+/* ── phases ── */
+const writePhases=arr=>setDoc(cfgRef,{phases:arr},{merge:true}).catch(fail);
+function renderPhases(){
+  const host=$('phaseList');
+  if(!cfgReady){host.innerHTML='';return;}
+  host.innerHTML=state.phases.map(p=>{
+    const spent=total(state.expenses.filter(e=>e.phase===p.id));
+    const budget=Number(p.budget)||0;
+    const pct=budget?spent/budget*100:0;
+    const cls=!budget?'':pct>100?'over':pct>=85?'warn':'';
+    const rem=budget-spent;
+    return `<div class="phase">
+      <div class="phase-head"><h3>${esc(p.name)}</h3>
+        <div class="nums"><b>${inr(spent)}</b> spent${budget?` of ${inr(budget)}`:''}</div></div>
+      <div class="bricks ${cls}" role="img" aria-label="${Math.round(pct)}% of phase budget used"><i style="width:${Math.min(pct,100)}%"></i></div>
+      <div class="phase-foot">
+        <label for="pb_${esc(p.id)}">Phase budget (₹)</label>
+        <input id="pb_${esc(p.id)}" data-pb="${esc(p.id)}" inputmode="numeric" value="${budget?budget.toLocaleString('en-IN'):''}" placeholder="0">
+        ${budget?(rem<0?`<span class="status-over">${inr(-rem)} over</span>`:`<span class="status-ok">${inr(rem)} left</span>`):'<span class="note">Set a budget to track this phase</span>'}
+        <span style="flex:1"></span>
+        <button class="btn small ghost" data-rn="${esc(p.id)}">Rename</button>
+        <button class="btn small ghost" data-rm="${esc(p.id)}">Remove</button>
+      </div></div>`;
+  }).join('')||'<div class="empty"><h3>No phases</h3><p>Add a phase below.</p></div>';
+  const unassigned=state.expenses.filter(e=>!state.phases.some(p=>p.id===e.phase));
+  if(unassigned.length)host.insertAdjacentHTML('beforeend',`<div class="phase"><div class="phase-head"><h3>Unassigned</h3><div class="nums"><b>${inr(total(unassigned))}</b> spent</div></div></div>`);
+  host.querySelectorAll('[data-pb]').forEach(i=>{
+    i.onchange=()=>writePhases(state.phases.map(p=>p.id===i.dataset.pb?{...p,budget:toNum(i.value)}:p));
+  });
+  host.querySelectorAll('[data-rn]').forEach(b=>b.onclick=()=>{
+    const p=state.phases.find(x=>x.id===b.dataset.rn);const n=prompt('Rename phase',p.name);
+    if(n&&n.trim())writePhases(state.phases.map(x=>x.id===p.id?{...x,name:n.trim()}:x));
+  });
+  host.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{
+    const p=state.phases.find(x=>x.id===b.dataset.rm);
+    const c=state.expenses.filter(e=>e.phase===p.id).length;
+    if(confirm(c?`Remove "${p.name}"? Its ${c} expense(s) will move to Unassigned.`:`Remove "${p.name}"?`))writePhases(state.phases.filter(x=>x.id!==p.id));
+  });
+}
+
+/* ── monthly ── */
+function groupSum(key){const m={};state.expenses.forEach(e=>{const k=key(e);m[k]=(m[k]||0)+e.amount;});return m;}
+function renderMonthly(){
+  const g=groupSum(e=>monthKey(e.date));
+  const keys=Object.keys(g).sort().reverse();
+  const max=Math.max(1,...Object.values(g));
+  $('monthList').innerHTML=keys.length?keys.map(k=>`<div class="m"><div>${monthLabel(k)}</div><div class="bar"><i style="width:${g[k]/max*100}%"></i></div><div class="val">${inr(g[k])}</div></div>`).join('')
+    :'<div class="empty"><h3>No months to show</h3><p>Monthly totals appear once you add expenses.</p></div>';
+  const list=obj=>{const e=Object.entries(obj).sort((a,b)=>b[1]-a[1]);const t=total(state.expenses)||1;
+    return e.length?e.map(([k,v])=>`<div class="li"><span>${esc(k)}</span><span><b>${inr(v)}</b> <span class="note">${Math.round(v/t*100)}%</span></span></div>`).join(''):'<p class="note">Nothing yet.</p>';};
+  $('catList').innerHTML=list(groupSum(e=>e.category));
+  $('modeList').innerHTML=list(groupSum(e=>e.mode));
+}
+
+/* ── add / edit dialog ── */
+let editId=null;
+const lastPick={};
+function openDlg(id){
+  editId=id||null;
+  const e=id?state.expenses.find(x=>x.id===id):null;
+  $('dlgTitle').textContent=e?'Edit expense':'Add expense';
+  $('ePhase').innerHTML=state.phases.map(p=>`<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
+  $('eCat').innerHTML=CATS.map(c=>`<option>${esc(c)}</option>`).join('');
+  $('eMode').innerHTML=MODES.map(c=>`<option>${esc(c)}</option>`).join('');
+  $('eDate').value=e?e.date:today();
+  $('eAmt').value=e?e.amount:'';
+  $('ePhase').value=e?e.phase:(lastPick.phase||(state.phases[0]||{}).id||'');
+  $('eCat').value=e?e.category:(lastPick.cat||CATS[0]);
+  $('eMode').value=e?e.mode:(lastPick.mode||MODES[0]);
+  $('ePayee').value=e?e.payee:'';
+  $('eRef').value=e?(e.ref||''):'';
+  $('eBy').value=e?(e.addedBy||''):store.get('hl_by');
+  $('eNote').value=e?(e.note||''):'';
+  $('eErr').textContent='';
+  $('dlg').showModal();
+  setTimeout(()=>$('eAmt').focus(),30);
+}
+function saveDlg(){
+  const amount=toNum($('eAmt').value), date=$('eDate').value;
+  if(!date){$('eErr').textContent='Pick a date.';return;}
+  if(!(amount>0)){$('eErr').textContent='Enter an amount greater than zero.';return;}
+  const rec={date,amount,phase:$('ePhase').value,category:$('eCat').value,mode:$('eMode').value,
+    payee:$('ePayee').value.trim(),ref:$('eRef').value.trim(),addedBy:$('eBy').value.trim(),note:$('eNote').value.trim(),
+    updatedAt:serverTimestamp()};
+  lastPick.phase=rec.phase;lastPick.cat=rec.category;lastPick.mode=rec.mode;
+  store.set('hl_by',rec.addedBy);
+  const wasEdit=!!editId;
+  // Not awaited on purpose: works offline and the list updates instantly
+  if(wasEdit)updateDoc(doc(db,EXP_COL,editId),rec).catch(fail);
+  else addDoc(collection(db,EXP_COL),{...rec,createdAt:serverTimestamp()}).catch(fail);
+  $('dlg').close();
+  toast(wasEdit?'Expense updated':'Expense saved');
+}
+
+/* ── export / import ── */
+function download(name,text,type){
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+const csvCell=v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+function exportCsv(){
+  const rows=[['Date','Paid to','Phase','Category','Payment mode','Reference','Amount','Added by','Note']];
+  [...state.expenses].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>rows.push([e.date,e.payee,phaseName(e.phase),e.category,e.mode,e.ref,e.amount,e.addedBy,e.note]));
+  download('house-expenses-'+today()+'.csv','\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\n'),'text/csv');
+}
+function exportJson(){
+  const out={budget:state.budget,phases:state.phases,expenses:state.expenses.map(({created,...e})=>e)};
+  download('house-ledger-backup-'+today()+'.json',JSON.stringify(out,null,2),'application/json');
+}
+async function importJson(file){
+  let d;
+  try{d=JSON.parse(await file.text());if(!d||!Array.isArray(d.expenses))throw new Error('bad');}
+  catch(e){alert('That file is not a valid ledger backup.');return;}
+  const phases=Array.isArray(d.phases)&&d.phases.length?d.phases:state.phases;
+  if(!confirm(`Upload ${d.expenses.length} expense(s) to Firebase? Phases and budget in the file will replace the current ones.`))return;
+  toast('Importing…');
+  try{
+    await setDoc(cfgRef,{budget:Number(d.budget)||0,phases},{merge:true});
+    for(let i=0;i<d.expenses.length;i+=400){
+      const batch=writeBatch(db);
+      d.expenses.slice(i,i+400).forEach(e=>{
+        const id=String(e.id||uid()).replace(/\//g,'_');
+        batch.set(doc(db,EXP_COL,id),{
+          date:e.date||today(),amount:Number(e.amount)||0,phase:e.phase||'',category:e.category||'Other',mode:e.mode||'Cash',
+          payee:e.payee||'',ref:e.ref||'',addedBy:e.addedBy||'',note:e.note||'',
+          createdAt:serverTimestamp(),updatedAt:serverTimestamp()
+        },{merge:true});
+      });
+      await batch.commit();
+    }
+    toast(`Imported ${d.expenses.length} expenses`);
+  }catch(err){fail(err);}
+}
+async function resetAll(){
+  if(prompt('This deletes every expense for everyone. Type DELETE to confirm.')!=='DELETE')return;
+  try{
+    const snap=await getDocs(collection(db,EXP_COL));
+    for(let i=0;i<snap.docs.length;i+=400){
+      const b=writeBatch(db);snap.docs.slice(i,i+400).forEach(d=>b.delete(d.ref));await b.commit();
+    }
+    await setDoc(cfgRef,{budget:0,phases:defaultPhases()},{merge:true});
+    toast('All data deleted');
+  }catch(err){fail(err);}
+}
+
+/* ── render + wiring ── */
+function renderAll(){
+  renderHeader();fillFilters();renderExpenses();
+  const a=document.activeElement;
+  if(!(a&&a.matches&&a.matches('[data-pb]')))renderPhases();
+  renderMonthly();
+}
+
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===t));
+  ['expenses','phases','monthly','data'].forEach(n=>$('tab-'+n).hidden=(n!==t.dataset.tab));
+});
+$('addBtn').onclick=()=>openDlg();
+$('eCancel').onclick=()=>$('dlg').close();
+$('eSave').onclick=saveDlg;
+$('dlg').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName!=='TEXTAREA'){e.preventDefault();saveDlg();}});
+['q','fPhase','fCat','fMonth'].forEach(id=>$(id).addEventListener(id==='q'?'input':'change',renderExpenses));
+$('budgetInput').addEventListener('change',e=>setDoc(cfgRef,{budget:toNum(e.target.value)},{merge:true}).catch(fail));
+$('budgetInput').addEventListener('keydown',e=>{if(e.key==='Enter')e.target.blur();});
+$('addPhase').onclick=()=>{
+  const n=$('newPhase').value.trim();if(!n)return;
+  writePhases([...state.phases,{id:uid(),name:n,budget:0}]);$('newPhase').value='';toast('Phase added');
+};
+$('newPhase').addEventListener('keydown',e=>{if(e.key==='Enter')$('addPhase').click();});
+$('expCsv').onclick=exportCsv;
+$('expJson').onclick=exportJson;
+$('impJsonBtn').onclick=()=>$('impJson').click();
+$('impJson').onchange=e=>{const f=e.target.files[0];if(f)importJson(f);e.target.value='';};
+$('resetAll').onclick=resetAll;
+
+renderAll();
+</script>
+</body>
+</html>
