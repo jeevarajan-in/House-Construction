@@ -162,6 +162,32 @@ dialog::backdrop{background:rgba(10,14,15,.6)}
   table.responsive td.row-actions{grid-column:1/-1;text-align:left}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* PDF report (shown only when printing) */
+#report{display:none}
+@page{size:A4;margin:14mm}
+@media print{
+  html,body{background:#fff!important;color:#111!important}
+  body > *:not(#report){display:none!important}
+  #report{display:block;font-family:'Barlow','Segoe UI',Arial,sans-serif;font-size:10.5pt;color:#111;line-height:1.35}
+  #report h1{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-size:22pt;margin:0}
+  #report h2{font-family:'Barlow Condensed','Arial Narrow',sans-serif;font-size:14pt;margin:18px 0 6px;border-bottom:2px solid #E3A81B;padding-bottom:2px}
+  #report .gen{color:#555;font-size:9pt;margin-bottom:10px}
+  #report .sum{display:flex;border:1px solid #bbb;margin:8px 0}
+  #report .sum div{flex:1;padding:8px 10px}
+  #report .sum div+div{border-left:1px solid #bbb}
+  #report .sum b{display:block;font-size:15pt;font-family:'Barlow Condensed','Arial Narrow',sans-serif}
+  #report .sum span{font-size:8.5pt;color:#555}
+  #report table{width:100%;border-collapse:collapse;background:#fff;border:0;font-size:9.5pt}
+  #report th,#report td{border-bottom:1px solid #ccc;padding:4px 6px;text-align:left;vertical-align:top;background:#fff;color:#111}
+  #report th{font-size:8.5pt;color:#555;border-bottom:1.5px solid #555}
+  #report td.r,#report th.r{text-align:right;white-space:nowrap}
+  #report thead{display:table-header-group}
+  #report tr{page-break-inside:avoid}
+  #report tfoot td{font-weight:700;border-top:1.5px solid #555}
+  #report .sub{color:#555;font-size:8.5pt}
+  #report .over{color:#B3321F;font-weight:700}
+}
 </style>
 </head>
 <body>
@@ -242,6 +268,7 @@ dialog::backdrop{background:rgba(10,14,15,.6)}
       <p class="note" style="margin-top:0">Download a CSV for Excel, or a backup file you can restore later.</p>
       <div class="tools">
         <button class="btn small" id="expCsv">Download CSV</button>
+        <button class="btn small" id="expPdf">Export PDF</button>
         <button class="btn small ghost" id="expJson">Back up data</button>
       </div>
     </div>
@@ -284,6 +311,7 @@ dialog::backdrop{background:rgba(10,14,15,.6)}
   </div>
 </dialog>
 
+<div id="report"></div>
 <div class="toast" id="toast" role="status"></div>
 
 <script type="module">
@@ -652,6 +680,45 @@ function exportCsv(){
   [...state.expenses].sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>rows.push([e.date,e.payee,phaseName(e.phase),e.category,e.mode,e.ref,e.amount,e.addedBy,e.note]));
   download('house-expenses-'+today()+'.csv','\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\n'),'text/csv');
 }
+function exportPdf(){
+  if(!state.expenses.length){toast('Add some expenses first',true);return;}
+  const spent=total(state.expenses), b=state.budget, rem=b-spent;
+  const sorted=[...state.expenses].sort((a,c)=>a.date.localeCompare(c.date)||(a.created-c.created));
+  const phaseRows=state.phases.map(p=>{
+    const s=total(state.expenses.filter(e=>e.phase===p.id)), pb=Number(p.budget)||0;
+    return `<tr><td>${esc(p.name)}</td><td class="r">${pb?inr(pb):'—'}</td><td class="r">${inr(s)}</td><td class="r${pb&&pb-s<0?' over':''}">${pb?inr(pb-s):'—'}</td></tr>`;
+  }).join('');
+  const un=state.expenses.filter(e=>!state.phases.some(p=>p.id===e.phase));
+  const unRow=un.length?`<tr><td>Unassigned</td><td class="r">—</td><td class="r">${inr(total(un))}</td><td class="r">—</td></tr>`:'';
+  const mg=groupSum(e=>monthKey(e.date));
+  const monthRows=Object.keys(mg).sort().map(k=>`<tr><td>${monthLabel(k)}</td><td class="r">${inr(mg[k])}</td></tr>`).join('');
+  const expRows=sorted.map(e=>`<tr>
+    <td>${dateLabel(e.date)}</td>
+    <td>${esc(e.payee)||'—'}${e.note?`<div class="sub">${esc(e.note)}</div>`:''}</td>
+    <td>${esc(phaseName(e.phase))}</td>
+    <td>${esc(e.category)}<div class="sub">${esc(e.mode)}${e.ref?' · '+esc(e.ref):''}</div></td>
+    <td class="r">${inr(e.amount)}</td></tr>`).join('');
+  $('report').innerHTML=`
+    <h1>House build expense report</h1>
+    <div class="gen">Generated ${dateLabel(today())} · ${sorted.length} expenses</div>
+    <div class="sum">
+      <div><b>${b?inr(b):'—'}</b><span>Total budget</span></div>
+      <div><b>${inr(spent)}</b><span>Spent</span></div>
+      <div><b class="${b&&rem<0?'over':''}">${b?inr(rem):'—'}</b><span>Remaining</span></div>
+      <div><b>${b?Math.round(spent/b*100)+'%':'—'}</b><span>Budget used</span></div>
+    </div>
+    <h2>By phase</h2>
+    <table><thead><tr><th>Phase</th><th class="r">Budget</th><th class="r">Spent</th><th class="r">Remaining</th></tr></thead><tbody>${phaseRows}${unRow}</tbody></table>
+    <h2>By month</h2>
+    <table><thead><tr><th>Month</th><th class="r">Spent</th></tr></thead><tbody>${monthRows}</tbody></table>
+    <h2>All expenses</h2>
+    <table><thead><tr><th>Date</th><th>Paid to</th><th>Phase</th><th>Category</th><th class="r">Amount</th></tr></thead>
+    <tbody>${expRows}</tbody><tfoot><tr><td colspan="4">Total</td><td class="r">${inr(spent)}</td></tr></tfoot></table>`;
+  const oldTitle=document.title;
+  document.title='House-expenses-'+today();   // becomes the suggested PDF file name
+  window.addEventListener('afterprint',()=>{document.title=oldTitle;},{once:true});
+  window.print();
+}
 function exportJson(){
   const out={budget:state.budget,phases:state.phases,expenses:state.expenses.map(({created,...e})=>e)};
   download('house-ledger-backup-'+today()+'.json',JSON.stringify(out,null,2),'application/json');
@@ -717,6 +784,7 @@ $('addPhase').onclick=()=>{
 };
 $('newPhase').addEventListener('keydown',e=>{if(e.key==='Enter')$('addPhase').click();});
 $('expCsv').onclick=exportCsv;
+$('expPdf').onclick=exportPdf;
 $('expJson').onclick=exportJson;
 $('impJsonBtn').onclick=()=>$('impJson').click();
 $('impJson').onchange=e=>{const f=e.target.files[0];if(f)importJson(f);e.target.value='';};
